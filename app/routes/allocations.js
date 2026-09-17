@@ -9,13 +9,10 @@ function AllocationsHandler(db) {
     const allocationsDAO = new AllocationsDAO(db);
 
     this.displayAllocations = (req, res, next) => {
-        /*
-        // Fix for A4 Insecure DOR -  take user id from session instead of from URL param
-        const { userId } = req.session;
-        */
-        const {
-            userId
-        } = req.params;
+        // A4-1 (Insecure Direct Object Reference): take the user id from the session,
+        // never from the URL parameter, so a logged-in user can only ever see their
+        // own allocations.
+        const userId = req.session.userId;
         const {
             threshold
         } = req.query

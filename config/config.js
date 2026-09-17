@@ -1,6 +1,5 @@
 const _ = require("underscore");
 const path = require("path");
-const util = require('util')
 
 const finalEnv = process.env.NODE_ENV || "development";
 
@@ -9,7 +8,6 @@ const envConf = require(path.resolve(__dirname + "/../config/env/" + finalEnv.to
 
 const config = { ...allConf, ...envConf }
 
-console.log(`Current Config:`)
-console.log(util.inspect(config, false, null))
-
+// A5-1 (Security Misconfiguration): removed logging of the full configuration,
+// which previously dumped secrets (database URI, cookie secret, crypto key) to stdout.
 module.exports = config;

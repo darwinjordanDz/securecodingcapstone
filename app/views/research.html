@@ -15,12 +15,26 @@
                 <form action="/research" method="get" role="search">
                     <div class="form-group">
                         <input type="hidden" id="url" name="url" value="https://finance.yahoo.com/quote/"/>
-                        <input type="text" class="form-control" placeholder="Stock Symbol" name="symbol" />
+                        <input type="text" class="form-control" placeholder="Stock Symbol" name="symbol" value="{{symbol}}" />
                         <p class="help-block">Enter Stock Symbol.</p>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
+
+                {% if resultError %}
+                <div class="alert alert-dismissable alert-danger">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    {{resultError}}
+                </div>
+                {% endif %}
+
+                {% if result %}
+                <div class="well">
+                    <h4>Stock information for {{symbol}}</h4>
+                    <pre>{{result}}</pre>
+                </div>
+                {% endif %}
 
             </div>
         </div>

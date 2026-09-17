@@ -53,13 +53,9 @@ const index = (app, db) => {
     app.get("/contributions", isLoggedIn, contributionsHandler.displayContributions);
     app.post("/contributions", isLoggedIn, contributionsHandler.handleContributionsUpdate);
 
-    // Benefits Page
-    app.get("/benefits", isLoggedIn, benefitsHandler.displayBenefits);
-    app.post("/benefits", isLoggedIn, benefitsHandler.updateBenefits);
-    /* Fix for A7 - checks user role to implement  Function Level Access Control
-     app.get("/benefits", isLoggedIn, isAdmin, benefitsHandler.displayBenefits);
-     app.post("/benefits", isLoggedIn, isAdmin, benefitsHandler.updateBenefits);
-     */
+    // Benefits Page (A7-Function-Level Access Control): only admins may manage benefits
+    app.get("/benefits", isLoggedIn, isAdmin, benefitsHandler.displayBenefits);
+    app.post("/benefits", isLoggedIn, isAdmin, benefitsHandler.updateBenefits);
 
     // Allocations Page
     app.get("/allocations/:userId", isLoggedIn, allocationsHandler.displayAllocations);
@@ -70,8 +66,17 @@ const index = (app, db) => {
 
     // Handle redirect for learning resources link
     app.get("/learn", isLoggedIn, (req, res) => {
-        // Insecure way to handle redirects by taking redirect url from query string
-        return res.redirect(req.query.url);
+        // A1-4 (Open Redirect): only ever redirect to a strict allow-list of
+        // constant targets, so a user-supplied value can never reach the
+        // redirect. Anything else falls back to the dashboard.
+        const learnLinkTargets = {
+            "/dashboard": "/dashboard",
+            "https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras":
+                "https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"
+        };
+
+        const redirectUrl = req.query.url || "";
+        return res.redirect(learnLinkTargets[redirectUrl] || "/dashboard");
     });
 
     // Handle redirect for learning resources link
@@ -82,9 +87,17 @@ const index = (app, db) => {
     });
 
     app.get("/tutorial/:page", (req, res) => {
+        // A1-5 (Path Traversal): only render known tutorial templates
         const {
             page
-        } = req.params
+        } = req.params;
+        const allowedTutorialPages = [
+            "a1", "a2", "a3", "a4", "a5", "a6",
+            "a7", "a8", "a9", "a10", "redos", "ssrf"
+        ];
+        if (allowedTutorialPages.indexOf(page) === -1) {
+            return res.render("tutorial/a1", { environmentalScripts });
+        }
         return res.render(`tutorial/${page}`, {
             environmentalScripts
         });

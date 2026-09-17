@@ -1,3 +1,47 @@
+// A6-1 / A7-1 (Sensitive Data Exposure): SSN and date-of-birth are stored
+// encrypted using AES-256-GCM (authenticated encryption). A fresh random
+// initialization vector is generated for every value, and stored alongside
+// the ciphertext and its authentication tag.
+
+const crypto = require("crypto");
+const config = require("../../config/config");
+
+const ALGORITHM = "aes-256-gcm";
+// Derive a 32-byte key from the configured crypto key.
+const KEY = crypto.createHash("sha256").update(String(config.cryptoKey)).digest();
+
+const encrypt = (plaintext) => {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
+    const encrypted = Buffer.concat([
+        cipher.update(String(plaintext), "utf8"),
+        cipher.final()
+    ]);
+    const authTag = cipher.getAuthTag();
+    return [iv.toString("hex"), authTag.toString("hex"), encrypted.toString("hex")].join(":");
+};
+
+const decrypt = (stored) => {
+    try {
+        const parts = String(stored).split(":");
+        if (parts.length !== 3) {
+            // Not in our encrypted format (e.g. legacy value) - do not guess.
+            return "";
+        }
+        const [ivHex, tagHex, dataHex] = parts;
+        const decipher = crypto.createDecipheriv(ALGORITHM, KEY, Buffer.from(ivHex, "hex"));
+        decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+        const decrypted = Buffer.concat([
+            decipher.update(Buffer.from(dataHex, "hex")),
+            decipher.final()
+        ]);
+        return decrypted.toString("utf8");
+    } catch (e) {
+        console.error("Failed to decrypt stored field: " + e.message);
+        return "";
+    }
+};
+
 /* The ProfileDAO must be constructed with a connected database object */
 function ProfileDAO(db) {
 
@@ -11,33 +55,6 @@ function ProfileDAO(db) {
     }
 
     const users = db.collection("users");
-
-    /* Fix for A6 - Sensitive Data Exposure
-
-    // Use crypto module to save sensitive data such as ssn, dob in encrypted format
-    const crypto = require("crypto");
-    const config = require("../../config/config");
-
-    /// Helper method create initialization vector
-    // By default the initialization vector is not secure enough, so we create our own
-    const createIV = () => {
-        // create a random salt for the PBKDF2 function - 16 bytes is the minimum length according to NIST
-        const salt = crypto.randomBytes(16);
-        return crypto.pbkdf2Sync(config.cryptoKey, salt, 100000, 512, "sha512");
-    };
-
-    // Helper methods to encryt / decrypt
-    const encrypt = (toEncrypt) => {
-        config.iv = createIV();
-        const cipher = crypto.createCipheriv(config.cryptoAlgo, config.cryptoKey, config.iv);
-        return `${cipher.update(toEncrypt, "utf8", "hex")} ${cipher.final("hex")}`;
-    };
-
-    const decrypt = (toDecrypt) => {
-        const decipher = crypto.createDecipheriv(config.cryptoAlgo, config.cryptoKey, config.iv);
-        return `${decipher.update(toDecrypt, "hex", "utf8")} ${decipher.final("utf8")}`;
-    };
-    */
 
     this.updateUser = (userId, firstName, lastName, ssn, dob, address, bankAcc, bankRouting, callback) => {
 
@@ -58,22 +75,13 @@ function ProfileDAO(db) {
         if (bankRouting) {
             user.bankRouting = bankRouting;
         }
+        // A6-1 (Sensitive Data Exposure): encrypt SSN and DOB before persisting.
         if (ssn) {
-            user.ssn = ssn;
-        }
-        if (dob) {
-            user.dob = dob;
-        }
-        /*
-        // Fix for A7 - Sensitive Data Exposure
-        // Store encrypted ssn and DOB
-        if(ssn) {
             user.ssn = encrypt(ssn);
         }
-        if(dob) {
+        if (dob) {
             user.dob = encrypt(dob);
         }
-        */
 
         users.update({
                 _id: parseInt(userId)
@@ -97,12 +105,9 @@ function ProfileDAO(db) {
             },
             (err, user) => {
                 if (err) return callback(err, null);
-                /*
-                // Fix for A6 - Sensitive Data Exposure
-                // Decrypt ssn and DOB values to display to user
+                // A6-1 (Sensitive Data Exposure): decrypt SSN and DOB for display only.
                 user.ssn = user.ssn ? decrypt(user.ssn) : "";
                 user.dob = user.dob ? decrypt(user.dob) : "";
-                */
 
                 callback(null, user);
             }

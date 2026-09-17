@@ -1,14 +1,18 @@
 // default app configuration
 const port = process.env.PORT || 4000;
-let db = process.env.MONGODB_URI || "mongodb://<username>:<password>@cluster0-shard-00-00.dg2at.mongodb.net:27017,cluster0-shard-00-01.dg2at.mongodb.net:27017,cluster0-shard-00-02.dg2at.mongodb.net:27017/owaspdb?ssl=true&replicaSet=atlas-12mhjn-shard-0&authSource=admin&retryWrites=true&w=majority";
+// A6-1 (Sensitive Data Exposure / Security Misconfiguration): removed hard-coded
+// database credentials. The connection string MUST be supplied via the MONGODB_URI
+// environment variable (Render/Heroku config var).
+const db = process.env.MONGODB_URI || "";
 
 module.exports = {
     port,
     db,
-    cookieSecret: "session_cookie_secret_key_here",
-    cryptoKey: "a_secure_key_for_crypto_here",
+    cookieSecret: process.env.COOKIE_SECRET || "please-change-me-before-deploying",
+    cryptoKey: process.env.CRYPTO_KEY || "change-me-too-before-deploying",
     cryptoAlgo: "aes256",
-    hostName: "localhost",
+    hostName: process.env.HOST_NAME || "localhost",
+    researchUrlBase: process.env.RESEARCH_URL_BASE || "https://finance.yahoo.com/quote/",
     environmentalScripts: []
 };
 

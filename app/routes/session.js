@@ -12,9 +12,10 @@ function SessionHandler(db) {
     const allocationsDAO = new AllocationsDAO(db);
 
     const prepareUserData = (user, next) => {
-        // Generate random allocations
-        const stocks = Math.floor((Math.random() * 40) + 1);
-        const funds = Math.floor((Math.random() * 40) + 1);
+        // Generate random allocations (cryptographically secure RNG)
+        const crypto = require("crypto");
+        const stocks = crypto.randomInt(40) + 1;
+        const funds = crypto.randomInt(40) + 1;
         const bonds = 100 - (stocks + funds);
 
         allocationsDAO.update(user._id, stocks, funds, bonds, (err) => {
@@ -24,7 +25,12 @@ function SessionHandler(db) {
 
     this.isAdminUserMiddleware = (req, res, next) => {
         if (req.session.userId) {
-            return userDAO.getUserById(req.session.userId, (err, user) => user && user.isAdmin ? next() : res.redirect("/login"));
+            return userDAO.getUserById(req.session.userId, (err, user) => {
+                // A7-3 (Function-Level Access Control): a logged-in non-admin user is
+                // redirected to their own dashboard instead of being allowed through.
+                if (err) return next(err);
+                return user && user.isAdmin ? next() : res.redirect("/dashboard");
+            });
         }
         console.log("redirecting to login");
         return res.redirect("/login");
@@ -53,41 +59,38 @@ function SessionHandler(db) {
             userName,
             password
         } = req.body
+
+        if (!userName || !password) {
+            return res.render("login", {
+                userName: userName || "",
+                password: "",
+                loginError: "Invalid username and/or password",
+                environmentalScripts
+            });
+        }
+
         userDAO.validateLogin(userName, password, (err, user) => {
+            // A2-2 (Broken Authentication): use a single generic error for both a
+            // failed login; distinguishing the two allows user enumeration.
             const errorMessage = "Invalid username and/or password";
-            const invalidUserNameErrorMessage = "Invalid username";
-            const invalidPasswordErrorMessage = "Invalid password";
             if (err) {
                 if (err.noSuchUser) {
-                    console.log('Error: attempt to login with invalid user: ', userName);
-
-                    // Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection
-                    // that could result in log forging:
-                    // - Step 1: Require a module that supports encoding
-                    // const ESAPI = require('node-esapi');
-                    // - Step 2: Encode the user input that will be logged in the correct context
-                    // following are a few examples:
-                    // console.log('Error: attempt to login with invalid user: %s', ESAPI.encoder().encodeForHTML(userName));
-                    // console.log('Error: attempt to login with invalid user: %s', ESAPI.encoder().encodeForJavaScript(userName));
-                    // console.log('Error: attempt to login with invalid user: %s', ESAPI.encoder().encodeForURL(userName));
-                    // or if you know that this is a CRLF vulnerability you can target this specifically as follows:
-                    // console.log('Error: attempt to login with invalid user: %s', userName.replace(/(\r\n|\r|\n)/g, '_'));
+                    // A1-3 (Injection - Log Injection): encode/sanitize input to prevent
+                    // CRLF injection / log forging when user-controlled input is logged.
+                    const ESAPI = require("node-esapi");
+                    console.log('Error: attempt to login with invalid user: %s', ESAPI.encoder().encodeForHTML(userName));
 
                     return res.render("login", {
                         userName: userName,
                         password: "",
-                        loginError: invalidUserNameErrorMessage,
-                        //Fix for A2-2 Broken Auth - Uses identical error for both username, password error
-                        // loginError: errorMessage
+                        loginError: errorMessage,
                         environmentalScripts
                     });
                 } else if (err.invalidPassword) {
                     return res.render("login", {
                         userName: userName,
                         password: "",
-                        loginError: invalidPasswordErrorMessage,
-                        //Fix for A2-2 Broken Auth - Uses identical error for both username, password error
-                        // loginError: errorMessage
+                        loginError: errorMessage,
                         environmentalScripts
                     });
                 } else {
@@ -95,20 +98,13 @@ function SessionHandler(db) {
                 }
             }
 
-            // A2-Broken Authentication and Session Management
-            // Upon login, a security best practice with regards to cookies session management
-            // would be to regenerate the session id so that if an id was already created for
-            // a user on an insecure medium (i.e: non-HTTPS website or otherwise), or if an
-            // attacker was able to get their hands on the cookie id before the user logged-in,
-            // then the old session id will render useless as the logged-in user with new privileges
-            // holds a new session id now.
-
-            // Fix the problem by regenerating a session in each login
-            // by wrapping the below code as a function callback for the method req.session.regenerate()
-            // i.e:
-            // `req.session.regenerate(() => {})`
-            req.session.userId = user._id;
-            return res.redirect(user.isAdmin ? "/benefits" : "/dashboard")
+            // A2-4 (Broken Authentication and Session Management): regenerate the
+            // session identifier on login so a pre-authentication session id captured
+            // by an attacker can not be reused for the newly authenticated session.
+            return req.session.regenerate(() => {
+                req.session.userId = user._id;
+                return res.redirect(user.isAdmin ? "/benefits" : "/dashboard");
+            });
         });
     };
 
@@ -135,12 +131,9 @@ function SessionHandler(db) {
         const FNAME_RE = /^.{1,100}$/;
         const LNAME_RE = /^.{1,100}$/;
         const EMAIL_RE = /^[\S]+@[\S]+\.[\S]+$/;
-        const PASS_RE = /^.{1,20}$/;
-        /*
-        //Fix for A2-2 - Broken Authentication -  requires stronger password
-        //(at least 8 characters with numbers and both lowercase and uppercase letters.)
-        const PASS_RE =/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
-        */
+        // A2-5 (Broken Authentication): require a stronger password - at least
+        // 8 characters including numbers, and both lowercase and uppercase letters.
+        const PASS_RE = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
 
         errors.userNameError = "";
         errors.firstNameError = "";
