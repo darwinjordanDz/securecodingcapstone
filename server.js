@@ -16,13 +16,19 @@ const app = express(); // Web framework to handle routing requests
 const routes = require("./app/routes");
 const { port, db, cookieSecret } = require("./config/config"); // Application config properties
 
-MongoClient.connect(db, (err, db) => {
-    if (err) {
-        console.log("Error: DB: connect");
-        console.log(err);
-        process.exit(1);
-    }
-    console.log(`Connected to the database`);
+MongoClient.connect(
+    db,
+    { useNewUrlParser: true, useUnifiedTopology: true },
+    (err, client) => {
+        if (err) {
+            console.log("Error: DB: connect");
+            console.log(err);
+            process.exit(1);
+        }
+        console.log(`Connected to the database`);
+        // MongoDB driver 3.x returns a MongoClient; the database (from the
+        // MONGODB_URI path, e.g. /nodegoat) is obtained via client.db().
+        const database = client.db();
 
     // A5-2 (Security Misconfiguration): add sensible HTTP security headers,
     // including an active Content Security Policy. Inline scripts are not used
@@ -104,7 +110,7 @@ MongoClient.connect(db, (err, db) => {
     });
 
     // Application routes
-    routes(app, db);
+    routes(app, database);
 
     // Template system setup
     // A7 (Cross-Site Scripting): autoescape is ENABLED so any user-controlled
