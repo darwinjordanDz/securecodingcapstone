@@ -9,6 +9,16 @@ const {
     environmentalScripts
 } = require("../../config/config");
 const ErrorHandler = require("./error").errorHandler;
+const rateLimit = require("express-rate-limit");
+// A2-4 (Brute Force): rate-limit authentication endpoints to slow down
+// password-guessing attempts.
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many attempts, please try again later."
+});
 
 const index = (app, db) => {
 
@@ -33,11 +43,11 @@ const index = (app, db) => {
 
     // Login form
     app.get("/login", sessionHandler.displayLoginPage);
-    app.post("/login", sessionHandler.handleLoginRequest);
+    app.post("/login", authLimiter, sessionHandler.handleLoginRequest);
 
     // Signup form
     app.get("/signup", sessionHandler.displaySignupPage);
-    app.post("/signup", sessionHandler.handleSignup);
+    app.post("/signup", authLimiter, sessionHandler.handleSignup);
 
     // Logout page
     app.get("/logout", sessionHandler.displayLogoutPage);

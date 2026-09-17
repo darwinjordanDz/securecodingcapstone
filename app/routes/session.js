@@ -130,7 +130,7 @@ function SessionHandler(db) {
         const USER_RE = /^.{1,20}$/;
         const FNAME_RE = /^.{1,100}$/;
         const LNAME_RE = /^.{1,100}$/;
-        const EMAIL_RE = /^[\S]+@[\S]+\.[\S]+$/;
+        const EMAIL_RE = /^\S{1,64}@\S{1,255}\.\S{1,64}$/;
         // A2-5 (Broken Authentication): require a stronger password - at least
         // 8 characters including numbers, and both lowercase and uppercase letters.
         const PASS_RE = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/;

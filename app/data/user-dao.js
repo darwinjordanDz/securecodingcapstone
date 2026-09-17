@@ -99,6 +99,14 @@ function UserDAO(db) {
     };
 
     this.getUserByUserName = (userName, callback) => {
+        // A1-2 (NoSQL Injection): same guarding as validateLogin. Reject anything
+        // that is not a plain string of expected characters before it can be used
+        // as a query predicate (e.g. {"$ne": ""}).
+        if (typeof userName !== "string" || !/^[A-Za-z0-9_.-]{1,50}$/.test(userName)) {
+            const invalidInputError = new Error("Invalid username and/or password");
+            invalidInputError.noSuchUser = true;
+            return callback(invalidInputError, null);
+        }
         usersCol.findOne({
             userName: userName
         }, callback);
