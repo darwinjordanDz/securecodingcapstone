@@ -1,4 +1,6 @@
-const bcrypt = require("bcrypt-nodejs");
+const bcrypt = require("bcryptjs");
+
+const crypto = require("crypto");
 
 /* The UserDAO must be constructed with a connected database object */
 function UserDAO(db) {
@@ -16,18 +18,15 @@ function UserDAO(db) {
 
     this.addUser = (userName, firstName, lastName, password, email, callback) => {
 
-        // Create user document
+        // A2-1 (Broken Authentication): store passwords using a strong one-way
+        // hash with a per-user salt (bcrypt). Never store plaintext passwords.
+        const salt = bcrypt.genSaltSync(10);
         const user = {
             userName,
             firstName,
             lastName,
             benefitStartDate: this.getRandomFutureDate(),
-            password //received from request param
-            /*
-            // Fix for A2-1 - Broken Auth
-            // Stores password  in a safer way using one way encryption and salt hashing
-            password: bcrypt.hashSync(password, bcrypt.genSaltSync())
-            */
+            password: bcrypt.hashSync(password, salt)
         };
 
         // Add email if set
@@ -47,50 +46,38 @@ function UserDAO(db) {
     };
 
     this.getRandomFutureDate = () => {
+        // A2-3 (Insecure Randomness): use a cryptographically secure RNG instead of Math.random()
         const today = new Date();
-        const day = (Math.floor(Math.random() * 10) + today.getDay()) % 29;
-        const month = (Math.floor(Math.random() * 10) + today.getMonth()) % 12;
-        const year = Math.ceil(Math.random() * 30) + today.getFullYear();
+        const day = (crypto.randomInt(10) + today.getDay()) % 29;
+        const month = (crypto.randomInt(10) + today.getMonth()) % 12;
+        const year = crypto.randomInt(31) + today.getFullYear();
         return `${year}-${("0" + month).slice(-2)}-${("0" + day).slice(-2)}`
     };
 
     this.validateLogin = (userName, password, callback) => {
 
-        // Helper function to compare passwords
-        const comparePassword = (fromDB, fromUser) => {
-            return fromDB === fromUser;
-            /*
-            // Fix for A2-Broken Auth
-            // compares decrypted password stored in this.addUser()
-            return bcrypt.compareSync(fromDB, fromUser);
-            */
-        }
-
-        // Callback to pass to MongoDB that validates a user document
-        const validateUserDoc = (err, user) => {
-
-            if (err) return callback(err, null);
-
-            if (user) {
-                if (comparePassword(password, user.password)) {
-                    callback(null, user);
-                } else {
-                    const invalidPasswordError = new Error("Invalid password");
-                    // Set an extra field so we can distinguish this from a db error
-                    invalidPasswordError.invalidPassword = true;
-                    callback(invalidPasswordError, null);
-                }
-            } else {
-                const noSuchUserError = new Error("User: " + user + " does not exist");
-                // Set an extra field so we can distinguish this from a db error
-                noSuchUserError.noSuchUser = true;
-                callback(noSuchUserError, null);
-            }
-        }
-
         usersCol.findOne({
             userName: userName
-        }, validateUserDoc);
+        }, (err, user) => {
+            if (err) return callback(err, null);
+
+            if (!user) {
+                // A2-2 (Broken Authentication): use a generic message so valid
+                // usernames cannot be enumerated.
+                const noSuchUserError = new Error("Invalid username and/or password");
+                noSuchUserError.noSuchUser = true;
+                return callback(noSuchUserError, null);
+            }
+
+            // A2-1 (Broken Authentication): compare against the stored hash.
+            if (bcrypt.compareSync(password, user.password)) {
+                return callback(null, user);
+            }
+
+            const invalidPasswordError = new Error("Invalid username and/or password");
+            invalidPasswordError.invalidPassword = true;
+            return callback(invalidPasswordError, null);
+        });
     };
 
     // This is the good one, see the next function

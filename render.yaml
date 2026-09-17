@@ -1,0 +1,21 @@
+# Render Blueprint for the hardened OWASP NodeGoat capstone app.
+# Deploy by linking this repository in your Render dashboard, or "New + > Blueprint",
+# then set the MONGODB_URI secret (free MongoDB Atlas M0 cluster).
+services:
+  - type: web
+    name: securecodingcapstone
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    preDeployCommand: node artifacts/db-reset.js
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: CRYPTO_KEY
+        generateValue: true

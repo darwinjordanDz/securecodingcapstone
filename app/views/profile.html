@@ -67,15 +67,15 @@
                     </div>
                     <div class="form-group">
                         <label for="website">Website</label>
-                        <input type="text" class="form-control" id="website" name="website" value="{{website}}"
-                            placeholder="https://">
+                        <input type="text" class="form-control" id="website" name="website" value="{{website}}" placeholder="https://">
                     </div>
                     <input type="hidden" name="_csrf" value="{{csrftoken}}" />
                     <button type="submit" class="btn btn-default" name="submit">Submit</button>
 
-                    <!-- @FIXME use a properly escaped variable that matches the URL context, for example
-                    refer to a firstNameSafeURLString field on the doc object set by the controller for this template -->
-                    <a href="{{firstNameSafeString}}">Google search this profile by name</a>
+                    <!-- A7-2 (XSS): only validated http(s) URLs are rendered into this href -->
+                    {% if websiteHref %}
+                    <a href="{{websiteHref}}" target="_blank" rel="noopener noreferrer">Visit my website</a>
+                    {% endif %}
                 </form>
             </div>
         </div>

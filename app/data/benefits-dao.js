@@ -17,7 +17,10 @@ function BenefitsDAO(db) {
             "isAdmin": {
                 $ne: true
             }
-        }).toArray((err, users) => callback(null, users));
+        }).toArray((err, users) => {
+            if (err) return callback(err, null);
+            return callback(null, users);
+        });
     };
 
     this.updateBenefits = (userId, startDate, callback) => {
