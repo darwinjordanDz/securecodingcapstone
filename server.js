@@ -24,10 +24,23 @@ MongoClient.connect(db, (err, db) => {
     }
     console.log(`Connected to the database`);
 
-    // A5-2 (Security Misconfiguration): add sensible HTTP security headers.
-    // CSP is disabled so the app's inline styles/scripts keep working; XSS is
-    // mitigated at the source via output encoding (see autoescape below).
-    app.use(helmet({ contentSecurityPolicy: false }));
+    // A5-2 (Security Misconfiguration): add sensible HTTP security headers,
+    // including an active Content Security Policy. Inline scripts are not used
+    // (the login-page cookie check was moved to app/assets/js/cookie-check.js),
+    // so script-src can stay strict. Styles keep 'unsafe-inline' because the
+    // Bootstrap-based templates rely on inline style attributes.
+    app.use(helmet({
+        contentSecurityPolicy: {
+            useDefaults: true,
+            directives: {
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:"],
+                fontSrc: ["'self'", "data:"],
+                connectSrc: ["'self'"]
+            }
+        }
+    }));
 
     // Express is behind a TLS-terminating proxy on Render/Heroku, which is
     // needed for req.secure to reflect the original https connection.

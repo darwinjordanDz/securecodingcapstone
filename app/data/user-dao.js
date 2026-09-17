@@ -56,6 +56,17 @@ function UserDAO(db) {
 
     this.validateLogin = (userName, password, callback) => {
 
+        // A1-2 (NoSQL Injection): the query simply keys on `userName`. If the
+        // client supplies a JSON object like {"$ne": null} it changes the query
+        // semantics and bypasses authentication. Reject anything that is not a
+        // plain string of expected characters before it can reach the query.
+        if (typeof userName !== "string" || typeof password !== "string" ||
+            !/^[A-Za-z0-9_.-]{1,50}$/.test(userName)) {
+            const invalidInputError = new Error("Invalid username and/or password");
+            invalidInputError.noSuchUser = true;
+            return callback(invalidInputError, null);
+        }
+
         usersCol.findOne({
             userName: userName
         }, (err, user) => {

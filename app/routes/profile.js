@@ -53,9 +53,10 @@ function ProfileHandler(db) {
         } = req.body;
 
         // ReDoS fix: the previous regex /([0-9]+)+\#/ used a greedy nested
-        // quantifier and was vulnerable to catastrophic backtracking. Removing the
-        // second quantifier keeps the same behaviour with linear complexity.
-        const regexPattern = /([0-9]+)\#/;
+        // quantifier and was vulnerable to catastrophic backtracking. The
+        // replacement is anchored and uses a bounded quantifier, so matching is
+        // linear for any input. Format: digits optionally followed by '#'.
+        const regexPattern = /^[0-9]{1,40}\#?$/;
         // Allow only numbers with a suffix of the letter #, for example: 'XXXXXX#'
         const testComplyWithRequirements = regexPattern.test(bankRouting);
         // if the regex test fails we do not allow saving

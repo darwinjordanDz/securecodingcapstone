@@ -66,41 +66,17 @@ const index = (app, db) => {
 
     // Handle redirect for learning resources link
     app.get("/learn", isLoggedIn, (req, res) => {
-        // A1-4 (Open Redirect): validate the redirect target. Same-site relative
-        // URLs must resolve to this exact origin (rejecting protocol-relative and
-        // backslash tricks), and absolute URLs must be https on an allow-listed
-        // trusted learning host. Anything else falls back to the dashboard.
-        const redirectUrl = req.query.url;
-        const trustedLearningHosts = ["khanacademy.org", "www.khanacademy.org"];
-
-        const isSafeRedirect = (target) => {
-            if (!target || typeof target !== "string") return false;
-
-            // Absolute URLs: https only, on an allow-listed trusted host.
-            if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(target)) {
-                try {
-                    const parsed = new URL(target);
-                    return parsed.protocol === "https:" && trustedLearningHosts.indexOf(parsed.hostname) !== -1;
-                } catch (e) {
-                    return false;
-                }
-            }
-
-            // Relative references: resolve against this app and require same origin.
-            try {
-                const base = `${req.protocol}://${req.get("host")}`;
-                const resolved = new URL(target, base);
-                if (resolved.origin !== base) return false;
-                return resolved.pathname.charAt(0) === "/" && resolved.pathname.charAt(1) !== "/";
-            } catch (e) {
-                return false;
-            }
+        // A1-4 (Open Redirect): only ever redirect to a strict allow-list of
+        // constant targets, so a user-supplied value can never reach the
+        // redirect. Anything else falls back to the dashboard.
+        const learnLinkTargets = {
+            "/dashboard": "/dashboard",
+            "https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras":
+                "https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"
         };
 
-        if (isSafeRedirect(redirectUrl)) {
-            return res.redirect(redirectUrl);
-        }
-        return res.redirect("/dashboard");
+        const redirectUrl = req.query.url || "";
+        return res.redirect(learnLinkTargets[redirectUrl] || "/dashboard");
     });
 
     // Handle redirect for learning resources link
